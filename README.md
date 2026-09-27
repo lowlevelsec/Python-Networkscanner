@@ -4,7 +4,8 @@ A lightweight network scanner written in Python for TCP and UDP port scanning & 
 
 The scanner supports IPv4 and IPv6, configurable thread counts, port-based service detection, HTTP-Header based server/ service & version identification and subnet host-discovery using ARP, ICMP, and TCP.
 
-#Features
+# Features
+
 Port Scanning:
 - TCP port scanning
 - UDP port scanning
@@ -34,7 +35,7 @@ Example:
 
 Host: 192.168.178.1 - MAC: b4:fc:51:74:e6:3d - Discovery: ARP, ICMP, TCP
 
-#Requirements
+# Requirements
 Python 3
 requests
 scapy
@@ -221,7 +222,7 @@ python_portscanner/
 ├── http_header.py
 └── services.py
 
-#portscanner.py
+# portscanner.py
 
 Main scanner implementation including:
 - TCP scanning
@@ -232,7 +233,7 @@ Main scanner implementation including:
 - Command-line argument parsing
 - Subnet scan integration
 
-#host_discovery.py
+# host_discovery.py
 
 Contains the host discovery functionality:
 - ARP scanning
@@ -241,7 +242,7 @@ Contains the host discovery functionality:
 - Subnet enumeration
 - Multithreaded host discovery
 
-#models.py
+# models.py
 
 Contains the data models used by the scanner:
 - Port
@@ -256,7 +257,7 @@ The Host object stores information such as:
 - TCP discovery status
 - Discovered ports
 
-#http_header.py
+# http_header.py
 
 Handles HTTP/HTTPS requests and extracts the Server response header for basic server and version 
 identification. Makes use of HttpHeader objekt to handle HTTP traffic
@@ -270,7 +271,7 @@ HTTPS-filter for https services is filtering these protocols:
 - mqtt-tls
 - amqp-tls
 
-#services.py
+# services.py
 
 Contains the database of commonly associated network services and ports.
 exp:
@@ -279,7 +280,7 @@ exp:
 - Port: 23 -> Protocok: telnet
 - Port: 25 -> Protocol: smtp
 
-#Disclaimer
+# Disclaimer
 
 Only scan systems and networks that you own or have explicit permission to test.
 
