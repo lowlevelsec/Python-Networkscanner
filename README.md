@@ -48,7 +48,7 @@ Root privileges may be required for ARP, ICMP, and TCP packet-based host discove
 
 sudo python3 portscanner.py ...
 
-#Usage
+# Usage
 
 -- IPv4 --
 
