@@ -7,18 +7,20 @@ The scanner supports IPv4 and IPv6, configurable thread counts, port-based servi
 # Features
 
 Port Scanning:
-- TCP port scanning
-- UDP port scanning
+- TCP port scanning (TCP only possible --> proxychains support)
+- UDP port scanning (UDP only possible)
 - IPv4 support
 - IPv6 support
 - Single port selection
 - Port range selection
 - Multiple port selection
-- Configurable number of threads
+- Configurable number of threads while port-scanning or subnet-scanning
 - Port-based common service detection
 - HTTP/HTTPS-Header service/ server & version detection
 - HTTP Server header detection
+- random/ custom User-Agent Spoofing
 - Support for common network, database, remote-access, VPN, proxy, and other services
+- Timings: predefined samples of different threads, delays, timeouts
 
 Host Discovery / Subnet Scanning:
 - ARP discovery
@@ -212,6 +214,52 @@ New features:
 - Expanded common-service database
 - IPv6 support
 - HTTPS support
+
+-- Version 2.0 --
+
+# New Features
+
+* **Random / custom User-Agent spoofing**
+
+  * Use a custom User-Agent with `-u / --user-agent`
+  * Generate a random User-Agent with `-r / --rand-uagent`
+
+* **HTTP version / Server-header detection**
+
+  * HTTP/HTTPS Server-header and version detection
+  * Only enabled with `-v / --version`
+  * No HTTP requests are made when version detection is disabled
+
+* **Custom subnet-scanning threads**
+
+  * Configure the number of concurrent threads with `-t / --threads`
+  * Applies to subnet host discovery as well as port scanning
+
+* **TCP-only scanning**
+
+  * `-sT / --tcp-proxy`
+  * Performs TCP connect scanning only
+  * Designed to work with tools such as ProxyChains
+
+* **UDP-only scanning**
+
+  * `--udp`
+  * Performs UDP scanning only
+
+* **Timing templates**
+
+  * `-T 0` through `-T 5`
+  * Controls scan timeout and delay
+  * Higher timing levels increase scan speed
+  * `-T 3` is the default
+
+* **MAC address & vendor identification**
+
+  * `--arp`
+  * Retrieves MAC addresses during ARP host discovery
+  * Identifies the vendor based on the MAC address/OUI when available
+  * Locally randomized MAC addresses may be shown as `unknown`
+
 
 -- Project Structure --
 
