@@ -1,6 +1,7 @@
 # host discovery & network enumeration python
 import ipaddress
 from models import Host
+from mac_addresses import get_vendor
 from concurrent.futures import ThreadPoolExecutor
 from scapy.all import (
 	ARP,
@@ -133,7 +134,8 @@ def subnet_scan(
 subnet: str,
 arp: bool=True,
 icmp: bool=True,
-tcp: bool=True
+tcp: bool=True,
+threads: int = 100
 ) -> dict[str, Host]:
 	network = ipaddress.ip_network(subnet, strict=False)
 
@@ -153,11 +155,12 @@ tcp: bool=True
 			client = network_clients[ip_addr]
 
 			client.mac = mac_addr
+			client.vendor = get_vendor(mac_addr)
 			client.arp = True
 
 	# ICMP scan - IPv4 & IPv6
 	if icmp == True:
-		with ThreadPoolExecutor(max_workers=100) as executor:
+		with ThreadPoolExecutor(max_workers=threads) as executor:
 
 			results = executor.map(
 				icmp_scan,
@@ -184,7 +187,7 @@ tcp: bool=True
 
 	# common tcp-port host discovery
 	if tcp == True:
-		with ThreadPoolExecutor(max_workers=100) as executor:
+		with ThreadPoolExecutor(max_workers=threads) as executor:
 
 			results = executor.map(
 				tcp_discovery,

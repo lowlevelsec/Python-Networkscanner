@@ -1,30 +1,40 @@
 # python portscanner
+import time
 import socket
 import argparse
 from models import Port
+from timings import rates
 from services import common_services
 from http_header import request_header
+from user_agents import random_user_agent
 from host_discovery import subnet_scan
 from concurrent.futures import ThreadPoolExecutor
-socket.setdefaulttimeout(0.5)
 parser = argparse.ArgumentParser(description="TCP/UDP - portscanner")
 group = parser.add_mutually_exclusive_group(required=True)
+user_agent_group = parser.add_mutually_exclusive_group()
+scan_type_group = parser.add_mutually_exclusive_group()
 
 group.add_argument("--ipv4", type=str, help="target IPv4 address")
 group.add_argument("--ipv6", type=str, help="target IPv6 address" )
 group.add_argument("-sn", "--subnet", type=str, help="subnet to scan")
+user_agent_group.add_argument("-u", "--user-agent", type=str, help="custom User-Agent")
+user_agent_group.add_argument("-r", "--rand-uagent", action="store_true", help="random User-Agent")
+scan_type_group.add_argument("-sT", "--tcp-proxy", action="store_true", help="TCP protocol only/ proxychaining")
+scan_type_group.add_argument("--udp", action="store_true", help="UDP protocol only")
 parser.add_argument("-t", "--threads", type=int, help="number of threads", default=100)
 parser.add_argument("-p", "--ports", type=str, help="port range (-p 1-1000, 22,443,445)")
 parser.add_argument("--arp", action="store_true", help="ARP host discovery")
 parser.add_argument("--icmp", action="store_true", help="ICMP host discovery")
 parser.add_argument("--tcp", action="store_true", help="TCP host discovery")
-
+parser.add_argument("-v", "--version", action="store_true", help="enable service/version detection")
+parser.add_argument("-T", "--timing", type=int, choices=range(6), default=3, metavar="{0-5}", help="scan timing (0-5, default: 3)")
 args = parser.parse_args()
 
 # tcp/IPV4 portscanning
-def tcp_scan(scan_ip: str, scan_port: int, ipv6: bool = False) -> Port | None:
+def tcp_scan(scan_ip: str, scan_port: int, ipv6: bool = False, timeout: float = 1.0) -> Port | None:
 	internet_protocol = socket.AF_INET6 if ipv6 else socket.AF_INET
 	tcp_socket = socket.socket(internet_protocol, socket.SOCK_STREAM)
+	tcp_socket.settimeout(timeout)
 
 	# tcp scan
 	result = tcp_socket.connect_ex((scan_ip, scan_port))
@@ -42,11 +52,12 @@ def tcp_scan(scan_ip: str, scan_port: int, ipv6: bool = False) -> Port | None:
 		return tcp_port
 
 # udp/IPV4 portscanning
-def udp_scan(scan_ip: str, scan_port: int, ipv6: bool = False) -> Port | None:
+def udp_scan(scan_ip: str, scan_port: int, ipv6: bool = False, timeout: float = 1.0) -> Port | None:
 
 	# udp scan
 	internet_protocol = socket.AF_INET6 if ipv6 else socket.AF_INET
 	with socket.socket(internet_protocol, socket.SOCK_DGRAM) as udp_socket:
+		udp_socket.settimeout(timeout)
 
 		try:
 			udp_socket.sendto(b'str', (scan_ip, scan_port))
@@ -76,33 +87,64 @@ def parse_ports(port_string: str) -> list[int]:
 	return ports
 
 # main portscan + http-header service & version detection
-def portscanning(target: str, port: int, ipv6: bool = False) -> list[Port]:
+def portscanning(
+	target: str,
+	port: int,
+	ipv6: bool = False,
+	user_agent: str | None = None,
+	version_detection: bool = False,
+	tcp_only: bool = False,
+	udp_only: bool = False,
+	timeout: float = 1.0,
+	delay: float = 0.0
+) -> list[Port]:
+
+	if delay > 0:
+		time.sleep(delay)
+
 	results: list[Port] = []
 
-	tcp_result = tcp_scan(target, port, ipv6)
+	if not udp_only:
+		tcp_result = tcp_scan(target, port, ipv6, timeout)
 
-	if tcp_result:
-		http_header = request_header(
-			ip_addr=target,
-			port=port,
-			common_service=tcp_result.service,
-			ipv6=ipv6
-		)
+		if tcp_result:
 
-		if http_header:
-			results.append(http_header)
+			if version_detection:
+				http_header = request_header(
+					ip_addr=target,
+					port=port,
+					common_service=tcp_result.service,
+					ipv6=ipv6,
+					user_agent=user_agent
+				)
 
-		else:
-			results.append(tcp_result)
+				if http_header:
+					results.append(http_header)
 
-	udp_result = udp_scan(target, port, ipv6)
+				else:
+					results.append(tcp_result)
 
-	if udp_result:
-		results.append(udp_result)
+			else:
+				results.append(tcp_result)
+
+	if not tcp_only:
+		udp_result = udp_scan(target, port, ipv6, timeout)
+
+		if udp_result:
+			results.append(udp_result)
 
 	return results
 
-def main(target: str, ipv6: bool = False) -> list[Port]:
+def main(
+	target: str,
+	ipv6: bool = False,
+	user_agent: str | None = None,
+	version_detection: bool = False,
+	tcp_only: bool = False,
+	udp_only: bool = False,
+	timeout: float = 1.0,
+	delay: float = 0.0
+) -> list[Port]:
 
 	if args.ports:
 		ports: list[int] = parse_ports(args.ports)
@@ -116,7 +158,16 @@ def main(target: str, ipv6: bool = False) -> list[Port]:
 	with ThreadPoolExecutor(max_workers=args.threads) as executor:
 
 		results = executor.map(
-			lambda scan_port: portscanning(target, port, ipv6),
+			lambda scan_port: portscanning(target,
+				scan_port,
+				ipv6,
+				user_agent,
+				version_detection,
+				tcp_only,
+				udp_only,
+				timeout,
+				delay
+			),
 			ports
 		)
 
@@ -125,7 +176,8 @@ def main(target: str, ipv6: bool = False) -> list[Port]:
 
 	return scanned_ports
 
-def subnet_main(subnet: str) -> None:
+# subnet scanning / host enumeration
+def subnet_main(subnet: str, threads: int) -> None:
 
 	scan_arp = args.arp
 	scan_icmp = args.icmp
@@ -145,7 +197,13 @@ def subnet_main(subnet: str) -> None:
 		f"\nTCP: {scan_tcp}"
 	)
 
-	hosts = subnet_scan(subnet=subnet, arp=scan_arp, icmp=scan_icmp, tcp=scan_tcp)
+	hosts = subnet_scan(
+		subnet=subnet,
+		arp=scan_arp,
+		icmp=scan_icmp,
+		tcp=scan_tcp,
+		threads=threads
+	)
 
 	if not hosts:
 		print("no active hosts found")
@@ -162,26 +220,62 @@ if __name__ == "__main__":
 	if args.threads < 1:
 		parser.error("minimum Thread amount: 1")
 
+	timing = rates[args.timing]
+
+	timeout = timing["timeout"]
+	delay = timing["delay"]
+
+	# User-Agent selection
+	user_agent = None
+	user_agent_browser_os = None
+
+	if args.user_agent:
+		user_agent = args.user_agent
+		user_agent_browser_os = "custom"
+
+	elif args.rand_uagent:
+		user_agent_browser_os, user_agent = random_user_agent()
+
+	if user_agent:
+		print(f"User-Agent: {user_agent_browser_os}")
+		print(f"Value: {user_agent}")
+
 	if args.subnet:
-		subnet_main(args.subnet)
+		subnet_main(subnet=args.subnet, threads=args.threads)
 
 	elif args.ipv6:
 		target_ip: str = args.ipv6
 		ipv6: bool = True
 
 		print(f"scanning {target_ip}...")
-		results = main(target=target_ip, ipv6=ipv6)
+		results = main(
+			target=target_ip,
+			ipv6=ipv6,
+			user_agent=user_agent,
+			version_detection=args.version,
+			tcp_only=args.tcp_proxy,
+			udp_only=args.udp,
+			timeout=timeout,
+			delay=delay
+			)
 
-		for scanned_ports in results:
-			print(scanned_ports)
+		for scanned_port in results:
+			print(scanned_port)
 
 	elif args.ipv4:
 		target_ip: str = args.ipv4
 		ipv6: bool = False
 
 		print(f"scanning {target_ip}...")
-		results = main(target=target_ip, ipv6=ipv6)
+		results = main(target=target_ip,
+			ipv6=ipv6,
+			user_agent=user_agent,
+			version_detection=args.version,
+			tcp_only=args.tcp_proxy,
+			udp_only=args.udp,
+			timeout=timeout,
+			delay=delay
+		)
 
 		for scanned_port in results:
 			print(scanned_port)
-

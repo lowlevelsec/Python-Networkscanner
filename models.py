@@ -21,7 +21,10 @@ class Host:
 		self.ip: str = ip
 		self.ipv4: bool = ipaddress.ip_address(ip).version == 4
 		self.ipv6: bool = ipaddress.ip_address(ip).version == 6
+
 		self.mac: str | None = None
+		self.vendor: str | None = None
+
 		self.arp: bool = False
 		self.icmp: bool = False
 		self.tcp: bool = False
@@ -41,4 +44,9 @@ class Host:
 
 		discovery = ", ".join(methods) if methods else "none"
 
-		return f"Host: {self.ip} - MAC: {self.mac or 'unknown'} - Discovery: {discovery}"
+		return (
+			f"Host: {self.ip} - "
+			f"MAC: {self.mac or 'unknown'} - "
+			f"Vendor: {self.vendor or 'unknown'} - "
+			f"Discovery: {discovery}"
+		)
