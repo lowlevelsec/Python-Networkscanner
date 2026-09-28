@@ -106,7 +106,7 @@ user_agent_dict = {
 	]
 }
 
-def random_user_agent() -> str:
+def random_user_agent() -> tuple[str, str]:
 	browser_os = random.choice(list(user_agent_dict))
 	user_agent = random.choice(user_agent_dict[browser_os])
 
